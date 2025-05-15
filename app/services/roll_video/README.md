@@ -203,7 +203,7 @@ ffmpeg -y \
 [0:v]fps=60,crop=iw:100:0:0,hwupload_cuda[top_mask_cuda]; \
 [bg_cuda][scroll_cuda]overlay_cuda=x=0:y='if(between(t,2.0,345.96875), 100-((t-2.0)/343.96875)*32921, if(lt(t,2.0), 100, -32921))'[overlayed_cuda]; \
 [overlayed_cuda][top_mask_cuda]overlay_cuda=x=0:y=0[final_cuda]; \
-[final_cuda]hwdownload,format=yuv420p[out]" \
+[final_cuda]scale_cuda=720:1280,hwdownload,format=yuv420p[out]" \
 -map "[out]" -c:v h264_nvenc -preset p7 -rc vbr -cq 15 -b:v 10M \
 -r 60 -g 60 -bf 3 \
 -pix_fmt yuv420p -movflags +faststart -t 343.96875 ./new-duan-img-smooth.mp4
