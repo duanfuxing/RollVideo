@@ -136,167 +136,34 @@ class RollVideoService:
         logger.warning(f"找不到指定字体，将使用系统默认字体")
         return self.get_system_default_font()
 
-    def create_roll_video_crop(
-        self,
-        text: str,
-        output_path: str,
-        width: int = 1080,
-        height: int = 1920,
-        font_path: Optional[str] = None,
-        font_size: int = 40,
-        font_color: Tuple[int, int, int] = (255, 255, 255),
-        bg_color: Union[
-            Tuple[int, int, int], Tuple[int, int, int, Union[int, float]]
-        ] = (
-            0,  # 默认黑色背景，不透明
-            0,
-            0,
-            255,
-        ),
-        background_url: str = None,
-        line_spacing: int = 20,
-        char_spacing: int = 0,
-        fps: int = 60,
-        roll_px: float = 1.6,  # 修改为每秒滚动的像素px
-        audio_path: Optional[str] = None,
-        top_margin: int = 10,      # 默认上边距10px
-        bottom_margin: int = 10,   # 默认下边距10px
-        left_margin: int = 10,     # 默认左边距10px
-        right_margin: int = 10,    # 默认右边距10px
-        top_blank: int = 0,        # 默认顶部留白0px
-    ) -> Dict[str, Union[str, bool]]:
-        """
-        使用FFmpeg滤镜创建滚动视频，自动根据透明度选择格式
-        
-        优势：
-        1. 更高效 - 不需要逐帧渲染，直接使用FFmpeg滤镜实现滚动效果
-        2. 更平滑 - 滚动效果由FFmpeg实时计算，支持亚像素精度的滚动
-        3. 更低内存 - 不需要在内存中处理大量帧
-        
-        """
-        try:
-            
-            # 标准的背景色处理逻辑
-            normalized_bg_color = list(bg_color)
-            bg_color_final = tuple(normalized_bg_color)
-            
-            output_dir = os.path.dirname(os.path.abspath(output_path))
-            base_name = os.path.splitext(os.path.basename(output_path))[0]
-
-            preferred_codec = "h264_nvenc"  # 优先尝试 GPU H.264 编码
-            actual_output_path = os.path.join(output_dir, f"{base_name}.mp4")
-
-            logger.info(f"开始创建滚动视频 (FFmpeg crop滤镜方式)，实际输出路径: {actual_output_path}")
-
-            # 确保输出目录存在
-            os.makedirs(output_dir, exist_ok=True)
-
-            # 获取有效的字体路径
-            font_path = self.get_font_path(font_path)
-
-            # 创建文字渲染器
-            text_renderer = TextRenderer(
-                width=width,
-                font_path=font_path,
-                font_size=font_size,
-                font_color=(
-                    tuple(font_color) if isinstance(font_color, list) else font_color
-                ),
-                bg_color=bg_color_final,
-                line_spacing=line_spacing,
-                char_spacing=char_spacing,
-                top_margin=top_margin,       # 传递上边距
-                bottom_margin=bottom_margin, # 传递下边距
-                left_margin=left_margin,     # 传递左边距
-                right_margin=right_margin    # 传递右边距
-            )
-
-            # 将文本渲染为图片，并获取文本实际高度
-            # 如果指定了背景URL，使用完全透明背景渲染文字
-            if background_url:
-                text_image, text_actual_height = text_renderer.render_text_to_transparent_image(
-                    text, min_height=height
-                )
-                logger.info("使用完全透明背景渲染文本")
-            else:
-                # 否则使用普通渲染方法
-                text_image, text_actual_height = text_renderer.render_text_to_image(
-                    text, min_height=height
-                )
-            
-            logger.info(
-                f"文本渲染完成，文本实际高度: {text_actual_height}px, 渲染图像总高度: {text_image.height}px"
-            )
-
-            # 估算行高 (字体大小 + 行间距)
-            estimated_line_height = font_size + line_spacing
-
-            # roll_px 设定为每秒滚动的像素
-            logger.info(
-                f"滚动速度设置: {roll_px}像素/帧 (行高约{estimated_line_height}像素)"
-            )
-
-            # 创建视频渲染器
-            video_renderer = VideoRenderer(
-                width=width, height=height, fps=fps, roll_px=roll_px, top_blank=top_blank
-            )
-
-            # 使用FFmpeg crop滤镜方式创建滚动视频 - 直接传递PIL图像，不转换为numpy数组
-            logger.info("开始创建滚动视频 (FFmpeg滤镜方式)...")
-            final_output_path = video_renderer.create_scrolling_video_overlay_cuda(
-                image=text_image,  # 直接传递PIL图像对象
-                output_path=actual_output_path,  # 使用自动调整后的路径
-                text_actual_height=text_actual_height,
-                preferred_codec=preferred_codec,  # 传递首选编码器
-                audio_path=audio_path,
-                bg_color=bg_color_final,  # 传递最终的bg_color供非透明路径使用
-                background_url=background_url  # 传递背景图URL
-            )
-
-            logger.info(f"滚动视频创建完成 (FFmpeg crop滤镜方式): {final_output_path}")
-
-            return {
-                "status": "success",
-                "message": "滚动视频创建成功 (FFmpeg crop滤镜方式)",
-                "output_path": final_output_path,
-            }
-
-        except Exception as e:
-            logger.error(f"创建滚动视频失败 (FFmpeg crop滤镜方式): {str(e)}", exc_info=True)
-            return {
-                "status": "error",
-                "message": f"创建滚动视频失败 (FFmpeg crop滤镜方式): {str(e)}",
-                "output_path": None,
-            }
-
     def create_roll_video_overlay_cuda(
-        self,
-        text: str,
-        output_path: str,
-        width: int = 1080,
-        height: int = 1920,
-        font_path: Optional[str] = None,
-        font_size: int = 40,
-        font_color: Tuple[int, int, int] = (255, 255, 255),
-        bg_color: Union[
-            Tuple[int, int, int], Tuple[int, int, int, Union[int, float]]
-        ] = (
-            0,  # 默认黑色背景，不透明
-            0,
-            0,
-            255,
-        ),
-        background_url: str = None,
-        line_spacing: int = 20,
-        char_spacing: int = 0,
-        fps: int = 60,
-        roll_px: float = 1.6,  # 每秒滚动的像素px
-        audio_path: Optional[str] = None,
-        top_margin: int = 10,      # 默认上边距10px
-        bottom_margin: int = 10,   # 默认下边距10px
-        left_margin: int = 10,     # 默认左边距10px
-        right_margin: int = 10,    # 默认右边距10px
-        top_blank: int = 0,        # 默认顶部留白0px
+            self,
+            text: str,
+            output_path: str,
+            width: int = 1080,
+            height: int = 1920,
+            font_path: Optional[str] = None,
+            font_size: int = 40,
+            font_color: Tuple[int, int, int] = (255, 255, 255),
+            bg_color: Union[
+                Tuple[int, int, int], Tuple[int, int, int, Union[int, float]]
+            ] = (
+                    0,  # 默认黑色背景，不透明
+                    0,
+                    0,
+                    255,
+            ),
+            background_url: str = None,
+            line_spacing: int = 20,
+            char_spacing: int = 0,
+            fps: int = 60,
+            roll_px: float = 1.6,  # 每秒滚动的像素px
+            audio_path: Optional[str] = None,
+            top_margin: int = 10,  # 默认上边距10px
+            bottom_margin: int = 10,  # 默认下边距10px
+            left_margin: int = 10,  # 默认左边距10px
+            right_margin: int = 10,  # 默认右边距10px
+            top_blank: int = 0,  # 默认顶部留白0px
     ) -> Dict[str, Union[str, bool]]:
         """
         使用overlay_cuda GPU滤镜创建滚动视频 - 只支持基础匀速滚动效果和从下到上滚动方向
@@ -329,7 +196,6 @@ class RollVideoService:
             normalized_bg_color = list(bg_color)
             normalized_bg_color.append(255)  # RGB 转 RGBA，默认不透明
             bg_color_final = tuple(normalized_bg_color)
-            
 
             output_dir = os.path.dirname(os.path.abspath(output_path))
             base_name = os.path.splitext(os.path.basename(output_path))[0]
@@ -356,10 +222,10 @@ class RollVideoService:
                 bg_color=bg_color_final,
                 line_spacing=line_spacing,
                 char_spacing=char_spacing,
-                top_margin=top_margin,       # 传递上边距
-                bottom_margin=bottom_margin, # 传递下边距
-                left_margin=left_margin,     # 传递左边距
-                right_margin=right_margin    # 传递右边距
+                top_margin=top_margin,  # 传递上边距
+                bottom_margin=bottom_margin,  # 传递下边距
+                left_margin=left_margin,  # 传递左边距
+                right_margin=right_margin  # 传递右边距
             )
 
             # 将文本渲染为图片，并获取文本实际高度
@@ -374,7 +240,7 @@ class RollVideoService:
                 text_image, text_actual_height = text_renderer.render_text_to_image(
                     text, min_height=height
                 )
-            
+
             logger.info(
                 f"文本渲染完成，文本实际高度: {text_actual_height}px, 渲染图像总高度: {text_image.height}px"
             )
@@ -387,7 +253,10 @@ class RollVideoService:
                 f"滚动速度设置: {roll_px}像素/帧 (行高约{estimated_line_height}像素)"
             )
 
-            # 创建视频渲染器
+            # 创建视频渲染器,顶部留白=上边距+顶部留白
+            if top_blank != 0:
+                top_blank = top_margin + top_blank
+
             video_renderer = VideoRenderer(
                 width=width, height=height, fps=fps, roll_px=roll_px, top_blank=top_blank
             )
