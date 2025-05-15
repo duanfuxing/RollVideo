@@ -253,9 +253,9 @@ class RollVideoService:
                 f"滚动速度设置: {roll_px}像素/帧 (行高约{estimated_line_height}像素)"
             )
 
-            # 创建视频渲染器,顶部留白=上边距+顶部留白
+            # 创建视频渲染器,顶部留白=上边距+顶部留白+5px(误差)
             if top_blank != 0:
-                top_blank = top_margin + top_blank
+                top_blank = top_margin + top_blank + 5
 
             video_renderer = VideoRenderer(
                 width=width, height=height, fps=fps, roll_px=roll_px, top_blank=top_blank

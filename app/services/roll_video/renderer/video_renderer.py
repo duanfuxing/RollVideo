@@ -205,8 +205,13 @@ class VideoRenderer:
                     # 验证文件是否为有效图片
                     try:
                         from PIL import Image
-                        Image.open(local_background_path).verify()
-                        logger.info(f"背景图片下载成功，保存至: {local_background_path}")
+                        img = Image.open(local_background_path)
+                        img.verify()  # 先校验
+                        img = Image.open(local_background_path)  # 重新打开用于裁剪
+                        # 裁剪图片到视频容器大小
+                        cropped = img.crop((0, 0, self.width, self.height))
+                        cropped.save(local_background_path)
+                        logger.info(f"背景图片下载并裁剪成功，保存至: {local_background_path}")
                         return local_background_path
                     except Exception as e:
                         logger.warning(f"下载的文件不是有效图片: {e}")
