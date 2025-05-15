@@ -44,6 +44,9 @@ class StatusCode:
     TASK_CREATION_FAILED = 1003    # 任务创建失败
     TASK_PROCESSING = 1004         # 任务处理中
 
+    # 背景图片错误
+    INVALID_PARAMETERS = 1005
+
 # 预定义的状态消息
 class StatusMessage:
     SUCCESS = "success"
