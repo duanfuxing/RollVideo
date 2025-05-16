@@ -521,8 +521,8 @@ class VideoRenderer:
                 logger.info("使用纯色背景的滤镜链")
 
             ffmpeg_cmd.extend([
-                "-filter_complex", f"\"{filter_complex}\"",
-                "-map", "\"[out]\""
+                "-filter_complex", f'"{filter_complex}"',
+                "-map", '"[out]"'
             ])
 
             # 添加音频映射（如果有）
