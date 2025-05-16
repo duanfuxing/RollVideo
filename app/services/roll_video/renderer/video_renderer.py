@@ -479,7 +479,7 @@ class VideoRenderer:
                 
                 # 处理底部遮罩
                 if self.bottom_margin > 0:
-                    filter_parts.append(f"[0:v]fps={self.fps},crop=iw:{self.bottom_margin}:0:0,hwupload_cuda[bottom_mask_cuda]")
+                    filter_parts.append(f"[0:v]fps={self.fps},crop=iw:{self.bottom_margin}:0:ih-{self.bottom_margin},hwupload_cuda[bottom_mask_cuda]")
                     filter_parts.append(f"{current_output}[bottom_mask_cuda]overlay_cuda=x=0:y={self.height - self.bottom_margin}[final_cuda]")
                     current_output = "[final_cuda]"
                 
@@ -511,6 +511,7 @@ class VideoRenderer:
                 if self.bottom_margin > 0:
                     filter_parts.append(f"{current_output}[{next_input_index}:v]overlay_cuda=x=0:y={self.height - self.bottom_margin}[final_cuda]")
                     current_output = "[final_cuda]"
+                    next_input_index += 1
                 
                 # 添加输出格式转换
                 filter_parts.append(f"{current_output}hwdownload,format=yuv420p[out]")
