@@ -120,18 +120,22 @@ class ImageProcessor:
             
             # 缩放图片
             if keep_aspect_ratio:
-                # 等比例缩放
-                image.thumbnail((target_width, target_height), Image.LANCZOS)
-                logger.info(f"等比例缩放图片至最大尺寸 {target_width}x{target_height}，实际尺寸 {image.width}x{image.height}")
-                
-                # 如果缩放后的尺寸小于目标尺寸，创建新画布并居中图片
-                if image.width < target_width or image.height < target_height:
-                    new_image = Image.new('RGB', (target_width, target_height), (0, 0, 0))
-                    paste_x = (target_width - image.width) // 2
-                    paste_y = (target_height - image.height) // 2
-                    new_image.paste(image, (paste_x, paste_y))
-                    image = new_image
-                    logger.info(f"将缩放后的图片居中放置在 {target_width}x{target_height} 画布上")
+                if image.width != target_width or image.height != target_height:
+                    logger.info(f"图片尺寸({image.width}x{image.height})不符合目标尺寸({target_width}x{target_height})，进行等比例缩放")
+                    # 等比例缩放
+                    image.thumbnail((target_width, target_height), Image.LANCZOS)
+                    logger.info(f"缩放后的图片尺寸: {image.width}x{image.height}")
+                    
+                    # 如果缩放后的尺寸小于目标尺寸，创建新画布并居中图片
+                    if image.width < target_width or image.height < target_height:
+                        new_image = Image.new('RGB', (target_width, target_height), (0, 0, 0))
+                        paste_x = (target_width - image.width) // 2
+                        paste_y = (target_height - image.height) // 2
+                        new_image.paste(image, (paste_x, paste_y))
+                        image = new_image
+                        logger.info(f"将缩放后的图片居中放置在 {target_width}x{target_height} 画布上")
+                else:
+                    logger.info(f"图片尺寸({image.width}x{image.height})已经符合目标尺寸({target_width}x{target_height})，无需缩放")
             else:
                 # 直接调整到目标大小
                 image = image.resize((target_width, target_height), Image.LANCZOS)
