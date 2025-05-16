@@ -118,9 +118,10 @@ class ImageProcessor:
                 logger.info(f"转换图片格式从 {image.mode} 到 RGBA")
                 image = image.convert('RGBA')
             
-            # 缩放图片
+            # 是否保持长宽比
             if keep_aspect_ratio:
-                if image.width != target_width or image.height != target_height:
+                # 如果图片尺寸超出目标尺寸，进行等比例缩放
+                if image.width > target_width or image.height > target_height:
                     logger.info(f"图片尺寸({image.width}x{image.height})不符合目标尺寸({target_width}x{target_height})，进行等比例缩放")
                     # 等比例缩放
                     image.thumbnail((target_width, target_height), Image.LANCZOS)
@@ -134,12 +135,13 @@ class ImageProcessor:
                         new_image.paste(image, (paste_x, paste_y))
                         image = new_image
                         logger.info(f"将缩放后的图片居中放置在 {target_width}x{target_height} 画布上")
+                # 如果图片尺寸小于目标尺寸，直接调整到目标大小
+                if image.width < target_width or image.height < target_height:
+                    # 直接调整到目标大小
+                    image = image.resize((target_width, target_height), Image.LANCZOS)
+                    logger.info(f"调整图片尺寸至 {target_width}x{target_height}")
                 else:
                     logger.info(f"图片尺寸({image.width}x{image.height})已经符合目标尺寸({target_width}x{target_height})，无需缩放")
-            else:
-                # 直接调整到目标大小
-                image = image.resize((target_width, target_height), Image.LANCZOS)
-                logger.info(f"调整图片尺寸至 {target_width}x{target_height}")
             
             # 如果尺寸超出，进行左上角裁剪
             if image.width > target_width or image.height > target_height:
