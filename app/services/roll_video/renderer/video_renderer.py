@@ -464,9 +464,9 @@ class VideoRenderer:
                 # 使用背景图片的滤镜链
                 # 基础部分：背景和滚动内容
                 filter_parts = [
-                    "[0:v]fps={self.fps},format=yuv420p,hwupload_cuda[bg_cuda]",
-                    "[1:v]fps={self.fps},format=rgba,hwupload_cuda[scroll_cuda]",
-                    "[bg_cuda][scroll_cuda]overlay_cuda=x=0:y='{y_expr}'[overlayed_cuda]"
+                    f"[0:v]fps={self.fps},format=yuv420p,hwupload_cuda[bg_cuda]",
+                    f"[1:v]fps={self.fps},format=rgba,hwupload_cuda[scroll_cuda]",
+                    f"[bg_cuda][scroll_cuda]overlay_cuda=x=0:y='{y_expr}'[overlayed_cuda]"
                 ]
                 
                 # 处理顶部遮罩
@@ -487,15 +487,15 @@ class VideoRenderer:
                 filter_parts.append(f"{current_output}hwdownload,format=yuv420p[out]")
                 
                 # 组合所有滤镜部分
-                filter_complex = "; \\\n".join(filter_parts)
+                filter_complex = ";\\\n".join(filter_parts)
                 
                 logger.info("使用背景图片的滤镜链")
             else:
                 # 使用纯色背景的滤镜链
                 # 基础部分：背景和滚动内容
                 filter_parts = [
-                    "[1:v]fps={self.fps},format=yuv420p,hwupload_cuda[img_cuda]",
-                    "[0:v][img_cuda]overlay_cuda=x=0:y='{y_expr}'[bg_with_scroll]"
+                    f"[1:v]fps={self.fps},format=yuv420p,hwupload_cuda[img_cuda]",
+                    f"[0:v][img_cuda]overlay_cuda=x=0:y='{y_expr}'[bg_with_scroll]"
                 ]
                 
                 current_output = "[bg_with_scroll]"
@@ -516,12 +516,12 @@ class VideoRenderer:
                 filter_parts.append(f"{current_output}hwdownload,format=yuv420p[out]")
                 
                 # 组合所有滤镜部分
-                filter_complex = "; \\\n".join(filter_parts)
+                filter_complex = ";\\\n".join(filter_parts)
                 
                 logger.info("使用纯色背景的滤镜链")
 
             ffmpeg_cmd.extend([
-                "-filter_complex", filter_complex,
+                "-filter_complex", f"{filter_complex}",
                 "-map", "[out]"
             ])
 
