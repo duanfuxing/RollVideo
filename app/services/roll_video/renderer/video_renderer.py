@@ -522,7 +522,7 @@ class VideoRenderer:
 
             ffmpeg_cmd.extend([
                 "-filter_complex", f"\"{filter_complex}\"",
-                "-map", "[out]"
+                "-map", "\"[out]\""
             ])
 
             # 添加音频映射（如果有）
