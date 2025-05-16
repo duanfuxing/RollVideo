@@ -137,6 +137,7 @@ class ImageProcessor:
                         logger.info(f"将缩放后的图片居中放置在 {target_width}x{target_height} 画布上")
                 # 如果图片尺寸小于目标尺寸，直接调整到目标大小
                 if image.width < target_width or image.height < target_height:
+                    logger.info(f"图片尺寸({image.width}x{image.height})小于目标尺寸({target_width}x{target_height})，直接调整到目标大小")
                     # 直接调整到目标大小
                     image = image.resize((target_width, target_height), Image.LANCZOS)
                     logger.info(f"调整图片尺寸至 {target_width}x{target_height}")
