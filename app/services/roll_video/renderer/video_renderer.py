@@ -12,6 +12,7 @@ import traceback
 import requests
 
 from .performance import PerformanceMonitor
+from .image_processor import ImageProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -153,14 +154,19 @@ class VideoRenderer:
 
         return codec_params, pix_fmt
 
-    def _download_background_image(self, background_url, output_path):
+    def _background_image_processor(self, background_url, output_path, width, height):
         """
         从网络下载背景图片并保存到本地临时文件
         
         参数:
             background_url: 背景图片URL
             output_path: 输出视频文件路径，用于确定保存目录
-            
+            width: 视频宽度
+            height: 视频高度
+        逻辑:
+            1、检查尺寸对图片等比缩放，然后裁剪指定尺寸
+            2、统一转换图片格式为png 的rgb 编码
+            3、体积在保持一定质量前提下压缩一些
         返回:
             local_background_path: 本地保存的图片路径，如果下载失败则返回None
         """
@@ -169,70 +175,36 @@ class VideoRenderer:
             return background_url
 
         try:
-            import requests
-
-            # 临时文件目录
-            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+            # 初始化图片处理器
+            image_processor = ImageProcessor()
+            
             # 设置临时图片名称
             local_background_path = f"{os.path.splitext(output_path)[0]}_background.png"
-
-            logger.info(f"开始下载背景图片: {background_url}")
-
-            # 设置请求头，部分网站需要UA才能访问
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-
-            # 下载图片，带超时和重试
-            max_retries = 3
-            retry_count = 0
-
-            while retry_count < max_retries:
-                try:
-                    response = requests.get(background_url, stream=True, timeout=30, headers=headers)
-                    response.raise_for_status()  # 确保请求成功
-
-                    # 检查内容类型是否为图片
-                    content_type = response.headers.get('Content-Type', '')
-                    if not content_type.startswith('image/'):
-                        logger.warning(f"下载的内容不是图片，Content-Type: {content_type}")
-                        # 如果不是图片，继续尝试，因为有些服务器可能不正确设置Content-Type
-
-                    with open(local_background_path, 'wb') as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            f.write(chunk)
-
-                    # 验证文件是否为有效图片
-                    try:
-                        from PIL import Image
-                        img = Image.open(local_background_path)
-                        img.verify()  # 先校验
-                        img = Image.open(local_background_path)  # 重新打开用于裁剪
-                        # 裁剪图片到视频容器大小
-                        cropped = img.crop((0, 0, self.width, self.height))
-                        cropped.save(local_background_path)
-                        logger.info(f"背景图片下载并裁剪成功，保存至: {local_background_path}")
-                        return local_background_path
-                    except Exception as e:
-                        logger.warning(f"下载的文件不是有效图片: {e}")
-                        os.remove(local_background_path)
-                        retry_count += 1
-                        continue
-
-                except requests.exceptions.Timeout:
-                    logger.warning(f"下载背景图片超时，重试 {retry_count + 1}/{max_retries}")
-                    retry_count += 1
-                    time.sleep(1)  # 等待1秒后重试
-                except requests.exceptions.RequestException as e:
-                    logger.warning(f"下载背景图片失败: {e}，重试 {retry_count + 1}/{max_retries}")
-                    retry_count += 1
-                    time.sleep(1)  # 等待1秒后重试
-
-            logger.error(f"经过 {max_retries} 次重试后仍无法下载背景图片")
-            return None
-
+            
+            logger.info(f"开始下载并处理背景图片: {background_url}")
+            
+            # 使用图片处理器下载并处理图片
+            result_path = image_processor.download_and_process_image(
+                image_url=background_url,
+                save_path=local_background_path,
+                target_width=width,
+                target_height=height,
+                keep_aspect_ratio=True,  # 保持长宽比
+                convert_to_rgb=True,      # 转换为RGB格式
+                compress_quality=90,      # 设置适当的压缩质量
+                output_format="PNG"       # 输出为PNG格式
+            )
+            
+            if result_path and os.path.exists(result_path):
+                logger.info(f"背景图片下载、处理并保存成功: {result_path}")
+                return result_path
+            else:
+                logger.error(f"背景图片处理失败: {background_url}")
+                return None
+                
         except Exception as e:
             logger.error(f"下载背景图片过程中出现异常: {str(e)}")
+            logger.error(traceback.format_exc())
             return None
 
     def _build_ffmpeg_cmd(self, bg_hex, temp_img_path, background_url=None, fps=None, width=None, height=None,
@@ -270,7 +242,7 @@ class VideoRenderer:
         local_background_path = None
         if background_url:
             # 下载背景图片（如果是URL）
-            local_background_path = self._download_background_image(background_url, output_path)
+            local_background_path = self._background_image_processor(background_url, output_path,width,height)
 
             if not local_background_path or not os.path.exists(local_background_path):
                 logger.warning(f"背景图片路径不存在或下载失败: {background_url}，将回退到使用纯色背景")

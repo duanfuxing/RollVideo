@@ -11,15 +11,15 @@
 """
 
 # 从renderer.py导入所有导出的组件
-from .renderer import (
-    TextRenderer,
-    VideoRenderer,
-    PerformanceMonitor
-)
+from .renderer import TextRenderer
+from .video_renderer import VideoRenderer
+from .performance import PerformanceMonitor
+from .image_processor import ImageProcessor
 
 # 导出所有组件
 __all__ = [
     "TextRenderer",
     "VideoRenderer",
-    "PerformanceMonitor"
+    "PerformanceMonitor",
+    "ImageProcessor"
 ]
