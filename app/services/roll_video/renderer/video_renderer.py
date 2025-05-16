@@ -12,6 +12,7 @@ import traceback
 import requests
 
 from .performance import PerformanceMonitor
+from .image_processor import ImageProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,8 @@ class VideoRenderer:
             height: int,
             fps: int = 60,
             roll_px: float = 1.6,  # 每帧滚动的像素数（由service层基于行高和每秒滚动行数计算而来）
-            top_blank: int = 0  # 顶部留白，单位 px
+            top_margin: int = 0,   # 上边距遮罩
+            bottom_margin: int = 0,  # 下边距遮罩
     ):
         """
         初始化视频渲染器
@@ -35,12 +37,15 @@ class VideoRenderer:
             height: 视频高度
             fps: 视频帧率
             roll_px: 每帧滚动的像素数（由service层基于行高和每秒滚动行数计算而来）
+            top_margin: 上边距遮罩
+            bottom_margin: 下边距遮罩
         """
         self.width = width
         self.height = height
         self.fps = fps
         self.roll_px = roll_px
-        self.top_blank = top_blank
+        self.top_margin = top_margin
+        self.bottom_margin = bottom_margin
         self.memory_pool = None
         self.frame_counter = 0
         self.total_frames = 0
@@ -153,14 +158,19 @@ class VideoRenderer:
 
         return codec_params, pix_fmt
 
-    def _download_background_image(self, background_url, output_path):
+    def _background_image_processor(self, background_url, output_path, width, height):
         """
         从网络下载背景图片并保存到本地临时文件
         
         参数:
             background_url: 背景图片URL
             output_path: 输出视频文件路径，用于确定保存目录
-            
+            width: 视频宽度
+            height: 视频高度
+        逻辑:
+            1、检查尺寸对图片等比缩放，然后裁剪指定尺寸
+            2、统一转换图片格式为png 的rgb 编码
+            3、体积在保持一定质量前提下压缩一些
         返回:
             local_background_path: 本地保存的图片路径，如果下载失败则返回None
         """
@@ -169,74 +179,39 @@ class VideoRenderer:
             return background_url
 
         try:
-            import requests
-
-            # 临时文件目录
-            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+            # 初始化图片处理器
+            image_processor = ImageProcessor()
+            
             # 设置临时图片名称
             local_background_path = f"{os.path.splitext(output_path)[0]}_background.png"
-
-            logger.info(f"开始下载背景图片: {background_url}")
-
-            # 设置请求头，部分网站需要UA才能访问
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-
-            # 下载图片，带超时和重试
-            max_retries = 3
-            retry_count = 0
-
-            while retry_count < max_retries:
-                try:
-                    response = requests.get(background_url, stream=True, timeout=30, headers=headers)
-                    response.raise_for_status()  # 确保请求成功
-
-                    # 检查内容类型是否为图片
-                    content_type = response.headers.get('Content-Type', '')
-                    if not content_type.startswith('image/'):
-                        logger.warning(f"下载的内容不是图片，Content-Type: {content_type}")
-                        # 如果不是图片，继续尝试，因为有些服务器可能不正确设置Content-Type
-
-                    with open(local_background_path, 'wb') as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            f.write(chunk)
-
-                    # 验证文件是否为有效图片
-                    try:
-                        from PIL import Image
-                        img = Image.open(local_background_path)
-                        img.verify()  # 先校验
-                        img = Image.open(local_background_path)  # 重新打开用于裁剪
-                        # 裁剪图片到视频容器大小
-                        cropped = img.crop((0, 0, self.width, self.height))
-                        cropped.save(local_background_path)
-                        logger.info(f"背景图片下载并裁剪成功，保存至: {local_background_path}")
-                        return local_background_path
-                    except Exception as e:
-                        logger.warning(f"下载的文件不是有效图片: {e}")
-                        os.remove(local_background_path)
-                        retry_count += 1
-                        continue
-
-                except requests.exceptions.Timeout:
-                    logger.warning(f"下载背景图片超时，重试 {retry_count + 1}/{max_retries}")
-                    retry_count += 1
-                    time.sleep(1)  # 等待1秒后重试
-                except requests.exceptions.RequestException as e:
-                    logger.warning(f"下载背景图片失败: {e}，重试 {retry_count + 1}/{max_retries}")
-                    retry_count += 1
-                    time.sleep(1)  # 等待1秒后重试
-
-            logger.error(f"经过 {max_retries} 次重试后仍无法下载背景图片")
-            return None
-
+            
+            logger.info(f"开始下载并处理背景图片: {background_url}")
+            
+            # 使用图片处理器下载并处理图片
+            result_path = image_processor.download_and_process_image(
+                image_url=background_url,
+                save_path=local_background_path,
+                target_width=width,
+                target_height=height,
+                keep_aspect_ratio=True,  # 保持长宽比
+                convert_to_rgb=True,      # 转换为RGB格式
+                compress_quality=90,      # 设置适当的压缩质量
+                output_format="PNG"       # 输出为PNG格式
+            )
+            
+            if result_path and os.path.exists(result_path):
+                logger.info(f"背景图片下载、处理并保存成功: {result_path}")
+                return result_path
+            else:
+                logger.error(f"背景图片处理失败: {background_url}")
+                return None
+                
         except Exception as e:
             logger.error(f"下载背景图片过程中出现异常: {str(e)}")
+            logger.error(traceback.format_exc())
             return None
 
-    def _build_ffmpeg_cmd(self, bg_hex, temp_img_path, background_url=None, fps=None, width=None, height=None,
-                          top_blank=None, output_path=None):
+    def _build_ffmpeg_cmd(self, bg_hex, temp_img_path, background_url=None, output_path=None):
         """
         构建基础的 FFmpeg 命令，根据是否提供背景图片 URL 来确定使用纯色背景还是图片背景
         
@@ -244,20 +219,11 @@ class VideoRenderer:
             bg_hex: 背景色十六进制格式
             temp_img_path: 临时图像文件路径
             background_url: 背景图片 URL，如果为 None 或不存在则使用纯色背景。支持网络URL，会自动下载
-            fps: 帧率，默认使用实例的fps
-            width: 视频宽度，默认使用实例的width
-            height: 视频高度，默认使用实例的height
-            top_blank: 顶部留白，默认使用实例的top_blank
             output_path: 输出视频文件路径，用于确定背景图片保存位置
         
         返回:
-            构建好的基础 FFmpeg 命令列表
+            构建好的基础 FFmpeg 命令列表, 背景图片本地路径
         """
-        # 使用默认参数或传入的参数
-        fps = fps or self.fps
-        width = width or self.width
-        height = height or self.height
-        top_blank = top_blank or self.top_blank
 
         # 基础命令部分
         ffmpeg_cmd = [
@@ -270,7 +236,7 @@ class VideoRenderer:
         local_background_path = None
         if background_url:
             # 下载背景图片（如果是URL）
-            local_background_path = self._download_background_image(background_url, output_path)
+            local_background_path = self._background_image_processor(background_url, output_path, self.width, self.height)
 
             if not local_background_path or not os.path.exists(local_background_path):
                 logger.warning(f"背景图片路径不存在或下载失败: {background_url}，将回退到使用纯色背景")
@@ -281,22 +247,35 @@ class VideoRenderer:
             # 使用图片作为背景
             ffmpeg_cmd.extend([
                 "-loop", "1",
-                "-framerate", str(fps),
+                "-framerate", str(self.fps),
                 "-i", local_background_path,  # 背景图片作为第一个输入
-                "-framerate", str(fps),
+                "-framerate", str(self.fps),
                 "-i", temp_img_path,  # 文本图片作为第二个输入
             ])
-
+            
             logger.info(f"使用背景图片模式: {local_background_path}")
         else:
             # 使用纯色背景
             ffmpeg_cmd.extend([
                 "-f", "lavfi",
-                "-i", f"color=c={bg_hex}:s={width}x{height}:r={fps},format=yuv420p,hwupload_cuda",
+                "-i", f"color=c={bg_hex}:s={self.width}x{self.height}:r={self.fps},format=yuv420p,hwupload_cuda",
                 "-i", temp_img_path,
-                "-f", "lavfi",
-                "-i", f"color=c={bg_hex}:s={width}x{top_blank}:r={fps},format=yuv420p,hwupload_cuda",
             ])
+            
+            # 只有当top_margin大于0时，才添加顶部遮罩输入
+            if self.top_margin > 0:
+                ffmpeg_cmd.extend([
+                    "-f", "lavfi",
+                    "-i", f"color=c={bg_hex}:s={self.width}x{self.top_margin}:r={self.fps},format=yuv420p,hwupload_cuda",
+                ])
+                
+            # 只有当bottom_margin大于0时，才添加底部遮罩输入
+            if self.bottom_margin > 0:
+                ffmpeg_cmd.extend([
+                    "-f", "lavfi",
+                    "-i", f"color=c={bg_hex}:s={self.width}x{self.bottom_margin}:r={self.fps},format=yuv420p,hwupload_cuda",
+                ])
+                
             logger.info("使用纯色背景模式")
 
         # 添加进度输出参数
@@ -478,26 +457,68 @@ class VideoRenderer:
 
             # 根据用户提供的命令修改滚动表达式
             # overlay_cuda=x=0:y='if(between(t,2.0,458.85), -((t-2.0)/456.85)*27411, if(lt(t,2.0), 0, -27411))'
-            y_expr = f"if(between(t,{scroll_start_time},{scroll_end_time}), {self.top_blank} - ((t-{scroll_start_time})/{scroll_duration})*{img_height - self.height + self.top_blank}, if(lt(t,{scroll_start_time}), {self.top_blank}, -{img_height - self.height + self.top_blank}))"
+            y_expr = f"if(between(t,{scroll_start_time},{scroll_end_time}), {self.top_margin} - ((t-{scroll_start_time})/{scroll_duration})*{img_height - self.height + self.top_margin}, if(lt(t,{scroll_start_time}), {self.top_margin}, -{img_height - self.height + self.top_margin}))"
 
             # 根据是否有背景图片URL来构建不同的滤镜链
             if local_background_path and os.path.exists(local_background_path):
                 # 使用背景图片的滤镜链
-                filter_complex = f"[0:v]fps={self.fps},format=yuv420p,hwupload_cuda[bg_cuda]; \
-                                  [1:v]fps={self.fps},format=rgba,hwupload_cuda[scroll_cuda]; \
-                                  [0:v]fps={self.fps},crop=iw:{self.top_blank}:0:0,hwupload_cuda[top_mask_cuda]; \
-                                  [bg_cuda][scroll_cuda]overlay_cuda=x=0:y='{y_expr}'[overlayed_cuda]; \
-                                  [overlayed_cuda][top_mask_cuda]overlay_cuda=x=0:y=0[final_cuda]; \
-                                  [final_cuda]hwdownload,format=yuv420p[out]"
-
+                # 基础部分：背景和滚动内容
+                filter_parts = [
+                    f"[0:v]fps={self.fps},format=yuv420p,hwupload_cuda[bg_cuda]",
+                    f"[1:v]fps={self.fps},format=rgba,hwupload_cuda[scroll_cuda]",
+                    f"[bg_cuda][scroll_cuda]overlay_cuda=x=0:y='{y_expr}'[overlayed_cuda]"
+                ]
+                
+                # 处理顶部遮罩
+                if self.top_margin > 0:
+                    filter_parts.append(f"[0:v]fps={self.fps},crop=iw:{self.top_margin}:0:0,hwupload_cuda[top_mask_cuda]")
+                    filter_parts.append("[overlayed_cuda][top_mask_cuda]overlay_cuda=x=0:y=0[with_top_mask]")
+                    current_output = "[with_top_mask]"
+                else:
+                    current_output = "[overlayed_cuda]"
+                
+                # 处理底部遮罩
+                if self.bottom_margin > 0:
+                    filter_parts.append(f"[0:v]fps={self.fps},crop=iw:{self.bottom_margin}:0:ih-{self.bottom_margin},hwupload_cuda[bottom_mask_cuda]")
+                    filter_parts.append(f"{current_output}[bottom_mask_cuda]overlay_cuda=x=0:y={self.height - self.bottom_margin}[final_cuda]")
+                    current_output = "[final_cuda]"
+                
+                # 添加输出格式转换
+                filter_parts.append(f"{current_output}hwdownload,format=yuv420p[out]")
+                
+                # 组合所有滤镜部分
+                filter_complex = ";".join(filter_parts)
+                
                 logger.info("使用背景图片的滤镜链")
             else:
-                # 使用纯色背景的滤镜链 - 修复了原始滤镜链中的错误
-                filter_complex = f"[1:v]fps={self.fps},format=yuv420p,hwupload_cuda[img_cuda]; \
-                                  [0:v][img_cuda]overlay_cuda=x=0:y='{y_expr}'[bg_with_scroll]; \
-                                  [bg_with_scroll][2:v]overlay_cuda=x=0:y=0[final_cuda]; \
-                                  [final_cuda]hwdownload,format=yuv420p[out]"
-
+                # 使用纯色背景的滤镜链
+                # 基础部分：背景和滚动内容
+                filter_parts = [
+                    f"[1:v]fps={self.fps},format=yuv420p,hwupload_cuda[img_cuda]",
+                    f"[0:v][img_cuda]overlay_cuda=x=0:y='{y_expr}'[bg_with_scroll]"
+                ]
+                
+                current_output = "[bg_with_scroll]"
+                next_input_index = 2  # 下一个输入源的索引
+                
+                # 处理顶部遮罩（如果需要）
+                if self.top_margin > 0:
+                    filter_parts.append(f"{current_output}[{next_input_index}:v]overlay_cuda=x=0:y=0[with_top_mask]")
+                    current_output = "[with_top_mask]"
+                    next_input_index += 1
+                
+                # 处理底部遮罩（如果需要）
+                if self.bottom_margin > 0:
+                    filter_parts.append(f"{current_output}[{next_input_index}:v]overlay_cuda=x=0:y={self.height - self.bottom_margin}[final_cuda]")
+                    current_output = "[final_cuda]"
+                    next_input_index += 1
+                
+                # 添加输出格式转换
+                filter_parts.append(f"{current_output}hwdownload,format=yuv420p[out]")
+                
+                # 组合所有滤镜部分
+                filter_complex = ";".join(filter_parts)
+                
                 logger.info("使用纯色背景的滤镜链")
 
             ffmpeg_cmd.extend([

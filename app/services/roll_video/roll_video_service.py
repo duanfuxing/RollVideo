@@ -140,8 +140,8 @@ class RollVideoService:
             self,
             text: str,
             output_path: str,
-            width: int = 1080,
-            height: int = 1920,
+            width: int = 720,
+            height: int = 1280,
             font_path: Optional[str] = None,
             font_size: int = 40,
             font_color: Tuple[int, int, int] = (255, 255, 255),
@@ -155,15 +155,14 @@ class RollVideoService:
             ),
             background_url: str = None,
             line_spacing: int = 20,
-            char_spacing: int = 0,
+            char_spacing: int = 5,
             fps: int = 60,
             roll_px: float = 1.6,  # 每秒滚动的像素px
             audio_path: Optional[str] = None,
-            top_margin: int = 10,  # 默认上边距10px
-            bottom_margin: int = 10,  # 默认下边距10px
-            left_margin: int = 10,  # 默认左边距10px
-            right_margin: int = 10,  # 默认右边距10px
-            top_blank: int = 0,  # 默认顶部留白0px
+            top_margin: int = 0,  # 默认上边距0px
+            bottom_margin: int = 0,  # 默认下边距0px
+            left_margin: int = 0,  # 默认左边距0px
+            right_margin: int = 0,  # 默认右边距0px
     ) -> Dict[str, Union[str, bool]]:
         """
         使用overlay_cuda GPU滤镜创建滚动视频 - 只支持基础匀速滚动效果和从下到上滚动方向
@@ -253,12 +252,9 @@ class RollVideoService:
                 f"滚动速度设置: {roll_px}像素/帧 (行高约{estimated_line_height}像素)"
             )
 
-            # 创建视频渲染器,顶部留白=上边距+顶部留白+5px(误差)
-            if top_blank != 0:
-                top_blank = top_margin + top_blank + 5
-
+            # 创建视频渲染器,传递上边距和下边距进行遮罩
             video_renderer = VideoRenderer(
-                width=width, height=height, fps=fps, roll_px=roll_px, top_blank=top_blank
+                width=width, height=height, fps=fps, roll_px=roll_px, top_margin=top_margin,bottom_margin=bottom_margin
             )
 
             # 使用FFmpeg CUDA overlay滤镜方式创建滚动视频

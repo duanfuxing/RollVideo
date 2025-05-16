@@ -48,10 +48,9 @@ def main():
     service = RollVideoService()
 
     # 定义测试场景参数列表
-    background_url = "https://aigc-miaobi.tos-cn-guangzhou.volces.com/clone_audio_user_demo/2025-05-08/b8b6dd60-2bf0-11f0-94a9-0daeec838b86.jpg"
     test_cases = [
         {
-            "description": "overlay_cuda_with_bg_stretch",
+            "description": "正常大图(1242x2208) - 无边距遮罩",
             "method": "overlay_cuda", 
             "params": {
                 "text": sample_text,
@@ -64,17 +63,16 @@ def main():
                 "line_spacing": 20,
                 "char_spacing": 10,
                 "fps": 30,
-                "roll_px": 1,
-                "top_margin": 10, # 上边距
-                "bottom_margin": 10, # 下边距
-                "left_margin": 10, # 左边距
-                "right_margin": 10, # 右边距
-                "background_url": background_url, # 背景图
-                "scale_mode": "stretch"  # 拉伸模式
+                "roll_px": 1.6,
+                "top_margin": 0, # 上边距
+                "bottom_margin": 0, # 下边距
+                "left_margin": 0, # 左边距
+                "right_margin": 0, # 右边距
+                "background_url": "https://aigc-miaobi-production.tos-cn-guangzhou.volces.com/1242x2208.png", # 背景图
             }
         },
         {
-            "description": "overlay_cuda_with_bg_tile",
+            "description": "正常大图(1242x2208) - 有上下边距遮罩",
             "method": "overlay_cuda", 
             "params": {
                 "text": sample_text,
@@ -87,17 +85,16 @@ def main():
                 "line_spacing": 20,
                 "char_spacing": 10,
                 "fps": 30,
-                "roll_px": 1,
-                "top_margin": 10, # 上边距
-                "bottom_margin": 10, # 下边距
-                "left_margin": 10, # 左边距
-                "right_margin": 10, # 右边距
-                "background_url": background_url, # 背景图
-                "scale_mode": "tile"  # 平铺模式
+                "roll_px": 1.6,
+                "top_margin": 120, # 上边距
+                "bottom_margin": 80, # 下边距
+                "left_margin": 0, # 左边距
+                "right_margin": 0, # 右边距
+                "background_url": "https://aigc-miaobi-production.tos-cn-guangzhou.volces.com/1242x2208.png", # 背景图
             }
         },
         {
-            "description": "overlay_cuda_no_bg",
+            "description": "正常大小图(720x1280) - 无边距遮罩（尺寸刚好匹配视频尺寸）",
             "method": "overlay_cuda", 
             "params": {
                 "text": sample_text,
@@ -110,17 +107,17 @@ def main():
                 "line_spacing": 20,
                 "char_spacing": 10,
                 "fps": 30,
-                "roll_px": 1,
-                "top_margin": 10, # 上边距
-                "bottom_margin": 10, # 下边距
-                "left_margin": 10, # 左边距
-                "right_margin": 10, # 右边距
-                "background_url": None  # 不使用背景图
+                "roll_px": 1.6,
+                "top_margin": 0, # 上边距
+                "bottom_margin": 0, # 下边距
+                "left_margin": 0, # 左边距
+                "right_margin": 0, # 右边距
+                "background_url": "https://aigc-miaobi-production.tos-cn-guangzhou.volces.com/720x1280.png", # 背景图
             }
         },
         {
-            "description": "crop_with_bg_stretch",
-            "method": "crop",
+            "description": "正常大小图(720x1280) - 仅有顶部边距遮罩",
+            "method": "overlay_cuda", 
             "params": {
                 "text": sample_text,
                 "width": 720,
@@ -132,18 +129,17 @@ def main():
                 "line_spacing": 20,
                 "char_spacing": 10,
                 "fps": 30,
-                "roll_px": 1,
-                "top_margin": 30, # 上边距
-                "bottom_margin": 30, # 下边距
-                "left_margin": 30, # 左边距
-                "right_margin": 30, # 右边距
-                "background_url": background_url, # 背景图
-                "scale_mode": "stretch"  # 拉伸模式
+                "roll_px": 1.6,
+                "top_margin": 100, # 上边距
+                "bottom_margin": 0, # 下边距
+                "left_margin": 0, # 左边距
+                "right_margin": 0, # 右边距
+                "background_url": "https://aigc-miaobi-production.tos-cn-guangzhou.volces.com/720x1280.png", # 背景图
             }
         },
         {
-            "description": "crop_with_bg_tile",
-            "method": "crop",
+            "description": "正常小图(264x640) - 无边距遮罩（尺寸小于视频尺寸）",
+            "method": "overlay_cuda", 
             "params": {
                 "text": sample_text,
                 "width": 720,
@@ -155,18 +151,17 @@ def main():
                 "line_spacing": 20,
                 "char_spacing": 10,
                 "fps": 30,
-                "roll_px": 1,
-                "top_margin": 30, # 上边距
-                "bottom_margin": 30, # 下边距
-                "left_margin": 30, # 左边距
-                "right_margin": 30, # 右边距
-                "background_url": background_url, # 背景图
-                "scale_mode": "tile"  # 平铺模式
+                "roll_px": 1.6,
+                "top_margin": 0, # 上边距
+                "bottom_margin": 0, # 下边距
+                "left_margin": 0, # 左边距
+                "right_margin": 0, # 右边距
+                "background_url": "https://aigc-miaobi-production.tos-cn-guangzhou.volces.com/264x640.png", # 背景图
             }
         },
         {
-            "description": "crop_no_bg",
-            "method": "crop",
+            "description": "正常小图(264x640) - 仅有底部边距遮罩",
+            "method": "overlay_cuda", 
             "params": {
                 "text": sample_text,
                 "width": 720,
@@ -178,12 +173,78 @@ def main():
                 "line_spacing": 20,
                 "char_spacing": 10,
                 "fps": 30,
-                "roll_px": 1,
-                "top_margin": 30, # 上边距
-                "bottom_margin": 30, # 下边距
-                "left_margin": 30, # 左边距
-                "right_margin": 30, # 右边距
-                "background_url": None  # 不使用背景图
+                "roll_px": 1.6,
+                "top_margin": 0, # 上边距
+                "bottom_margin": 80, # 下边距
+                "left_margin": 0, # 左边距
+                "right_margin": 0, # 右边距
+                "background_url": "https://aigc-miaobi-production.tos-cn-guangzhou.volces.com/264x640.png", # 背景图
+            }
+        },
+        {
+            "description": "非RGBA格式图片 - 无边距遮罩",
+            "method": "overlay_cuda", 
+            "params": {
+                "text": sample_text,
+                "width": 720,
+                "height": 1280,
+                "font_path": "方正黑体简体.ttf",
+                "font_size": 30,
+                "font_color": [0,0,0],
+                "bg_color": [255,255,255,1.0],  # 不透明白色背景
+                "line_spacing": 20,
+                "char_spacing": 10,
+                "fps": 30,
+                "roll_px": 1.6,
+                "top_margin": 0, # 上边距
+                "bottom_margin": 0, # 下边距
+                "left_margin": 0, # 左边距
+                "right_margin": 0, # 右边距
+                "background_url": "https://aigc-miaobi.tos-cn-guangzhou.volces.com/file/b432b5b314bd8ff3acb409e0b56457ba/51c68aa0-319a-11f0-9a22-f3251006fbf4.png", # 背景图
+            }
+        },
+        {
+            "description": "非RGBA格式图片 - 同时有上下边距遮罩",
+            "method": "overlay_cuda", 
+            "params": {
+                "text": sample_text,
+                "width": 720,
+                "height": 1280,
+                "font_path": "方正黑体简体.ttf",
+                "font_size": 30,
+                "font_color": [0,0,0],
+                "bg_color": [255,255,255,1.0],  # 不透明白色背景
+                "line_spacing": 20,
+                "char_spacing": 10,
+                "fps": 30,
+                "roll_px": 1.6,
+                "top_margin": 150, # 上边距
+                "bottom_margin": 100, # 下边距
+                "left_margin": 0, # 左边距
+                "right_margin": 0, # 右边距
+                "background_url": "https://aigc-miaobi.tos-cn-guangzhou.volces.com/file/b432b5b314bd8ff3acb409e0b56457ba/51c68aa0-319a-11f0-9a22-f3251006fbf4.png", # 背景图
+            }
+        },
+        {
+            "description": "无背景图片 - 纯色背景带边距遮罩",
+            "method": "overlay_cuda", 
+            "params": {
+                "text": sample_text,
+                "width": 720,
+                "height": 1280,
+                "font_path": "方正黑体简体.ttf",
+                "font_size": 30,
+                "font_color": [0,0,0],
+                "bg_color": [200,200,255,1.0],  # 浅蓝色背景
+                "line_spacing": 20,
+                "char_spacing": 10,
+                "fps": 30,
+                "roll_px": 1.6,
+                "top_margin": 120, # 上边距
+                "bottom_margin": 80, # 下边距
+                "left_margin": 0, # 左边距
+                "right_margin": 0, # 右边距
+                "background_url": None, # 无背景图
             }
         }
     ]
