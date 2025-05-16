@@ -487,7 +487,7 @@ class VideoRenderer:
                 filter_parts.append(f"{current_output}hwdownload,format=yuv420p[out]")
                 
                 # 组合所有滤镜部分
-                filter_complex = ";\\\n".join(filter_parts)
+                filter_complex = ";".join(filter_parts)
                 
                 logger.info("使用背景图片的滤镜链")
             else:
@@ -516,7 +516,7 @@ class VideoRenderer:
                 filter_parts.append(f"{current_output}hwdownload,format=yuv420p[out]")
                 
                 # 组合所有滤镜部分
-                filter_complex = ";\\\n".join(filter_parts)
+                filter_complex = ";".join(filter_parts)
                 
                 logger.info("使用纯色背景的滤镜链")
 
