@@ -3,9 +3,6 @@ from typing import List, Optional, Dict, Any
 from uuid import uuid4
 from datetime import datetime
 from pydantic import BaseModel
-import requests
-from io import BytesIO
-from PIL import Image
 
 from app.models.response import success_response, error_response, StatusCode, StatusMessage
 from app.models.roll_video_task import RollVideoTaskCreate
@@ -39,55 +36,6 @@ async def create_task(request: TaskCreateRequest):
         任务创建结果
     """
     try:
-        # 检查background_url格式
-        if "background_url" in request.payload and request.payload["background_url"]:
-            background_url = request.payload["background_url"]
-            try:
-                # 下载图片
-                response = requests.get(background_url)
-                response.raise_for_status()
-                img_data = BytesIO(response.content)
-                
-                # 使用PIL打开图片
-                img = Image.open(img_data)
-                
-                # 检查图片格式
-                if img.format != "PNG":
-                    return error_response(
-                        code=StatusCode.INVALID_PARAMETERS,
-                        message="背景图片必须是PNG编码格式"
-                    )
-                
-                # 检查图片模式
-                if img.mode not in ["RGB", "RGBA"]:
-                    return error_response(
-                        code=StatusCode.INVALID_PARAMETERS,
-                        message="背景图片必须是RGB或RGBA模式"
-                    )
-                
-                # 检查是否为动画PNG
-                try:
-                    img.seek(1)
-                    # 如果能执行到这里，说明有多帧，是动画PNG
-                    return error_response(
-                        code=StatusCode.INVALID_PARAMETERS,
-                        message="不支持动画PNG格式的背景图片"
-                    )
-                except EOFError:
-                    # 正常的单帧PNG图片会抛出EOFError
-                    pass
-                
-            except requests.RequestException as e:
-                return error_response(
-                    code=StatusCode.INVALID_PARAMETERS,
-                    message=f"无法获取背景图片: {str(e)}"
-                )
-            except Exception as e:
-                return error_response(
-                    code=StatusCode.INVALID_PARAMETERS, 
-                    message=f"背景图片格式验证失败: {str(e)}"
-                )
-
         # 生成任务ID
         task_id = f"{uuid4()}"
 
