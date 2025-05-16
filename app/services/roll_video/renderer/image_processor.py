@@ -133,7 +133,7 @@ class ImageProcessor:
                         paste_x = (target_width - image.width) // 2
                         paste_y = (target_height - image.height) // 2
                         new_image.paste(image, (paste_x, paste_y))
-                        image = new_image
+                        image = new_image.convert('RGBA')
                         logger.info(f"将缩放后的图片居中放置在 {target_width}x{target_height} 画布上")
                 # 如果图片尺寸小于目标尺寸，直接调整到目标大小
                 if image.width < target_width or image.height < target_height:
