@@ -114,9 +114,9 @@ class ImageProcessor:
             
         try:
             # 转换格式为RGB（如果需要）
-            if convert_to_rgb and image.mode != 'RGB':
-                logger.info(f"转换图片格式从 {image.mode} 到 RGB")
-                image = image.convert('RGB')
+            if convert_to_rgb and image.mode != 'RGBA':
+                logger.info(f"转换图片格式从 {image.mode} 到 RGBA")
+                image = image.convert('RGBA')
             
             # 缩放图片
             if keep_aspect_ratio:
