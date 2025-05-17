@@ -487,11 +487,12 @@ class VideoRenderer:
             
             # 根据是否有背景图片URL来构建不同的滤镜链-使用背景图片的滤镜链
             if local_background_path and os.path.exists(local_background_path):
+                # 使用背景图片的滤镜链
                 # 基础部分：背景和滚动内容
                 filter_parts = [
                     f"[0:v]fps={self.fps},format=yuv420p,hwupload_cuda[bg_cuda]",
-                    # 添加锐化处理以保持文字边缘的清晰度
-                    f"[1:v]fps={self.fps},format=rgba,unsharp=5:5:1.2:5:5:0.0,hwupload_cuda[scroll_cuda]",
+                    # 使用更温和的unsharp参数
+                    f"[1:v]fps={self.fps},format=rgba,unsharp=3:3:0.7:3:3:0.0,hwupload_cuda[scroll_cuda]",
                     # 使用精确的坐标计算
                     f"[bg_cuda][scroll_cuda]overlay_cuda=x=0:y='{y_expr}':eval=frame[overlayed_cuda]"
                 ]
@@ -521,8 +522,8 @@ class VideoRenderer:
                 # 使用纯色背景的滤镜链
                 # 基础部分：背景和滚动内容
                 filter_parts = [
-                    # 文本图像处理：保持RGBA，应用unsharp，然后硬件上传
-                    f"[1:v]fps={self.fps},format=rgba,unsharp=5:5:1.2:5:5:0.0,hwupload_cuda[img_cuda]",
+                    # 文本图像处理：保持RGBA，应用更温和的unsharp，然后硬件上传
+                    f"[1:v]fps={self.fps},format=rgba,unsharp=3:3:0.7:3:3:0.0,hwupload_cuda[img_cuda]",
                     # 背景(0:v) 与 处理后的文本图像(img_cuda) 叠加
                     f"[0:v][img_cuda]overlay_cuda=x=0:y='{y_expr}':eval=frame[bg_with_scroll]"
                 ]
