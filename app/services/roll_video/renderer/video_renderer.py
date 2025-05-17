@@ -481,7 +481,7 @@ class VideoRenderer:
 
             # 根据用户提供的命令修改滚动表达式
             # 使用ld(N)函数获取帧号，确保每帧位置唯一，乘以roll_px_int控制速度
-            y_expr = f"if(between(t,{scroll_start_time},{scroll_end_time}), {self.top_margin} - {roll_px_int}*ld(N), if(lt(t,{scroll_start_time}), {self.top_margin}, -{img_height - self.height + self.top_margin}))"
+            y_expr = f"if(between(n,{int(scroll_start_time * self.fps)},{int(scroll_end_time * self.fps)}), {self.top_margin} - {roll_px_int}*(n-{int(scroll_start_time * self.fps)}), if(lt(n,{int(scroll_start_time * self.fps)}), {self.top_margin}, -{img_height - self.height + self.top_margin}))"
             
             # 打印y_expr表达式
             logger.info(f"滚动表达式y_expr: {y_expr}")
@@ -492,13 +492,16 @@ class VideoRenderer:
             
             # 计算并打印几个关键时间点的y值示例
             def calc_y(t):
-                if t < scroll_start_time:
+                # 计算当前帧号
+                frame_number = int(t * self.fps)
+                start_frame = int(scroll_start_time * self.fps)
+                end_frame = int(scroll_end_time * self.fps)
+                
+                if frame_number < start_frame:
                     return self.top_margin
-                elif t >= scroll_start_time and t <= scroll_end_time:
-                    # 计算自滚动开始后经过的帧数
-                    frame_index = int((t - scroll_start_time) * self.fps)
-                    # 返回匀速移动的位置，乘以速度因子
-                    return self.top_margin - roll_px_int * frame_index
+                elif frame_number >= start_frame and frame_number <= end_frame:
+                    # 直接使用帧号差计算位移
+                    return self.top_margin - roll_px_int * (frame_number - start_frame)
                 else:
                     return -(img_height - self.height + self.top_margin)
             
@@ -507,19 +510,14 @@ class VideoRenderer:
             logger.info(f"滚动中间点 t={scroll_start_time + scroll_duration/2}s: y={calc_y(scroll_start_time + scroll_duration/2)}")
             logger.info(f"滚动结束点 t={scroll_end_time}s: y={calc_y(scroll_end_time)}")
             
-            # 同时直接打印到控制台
-            print(f"滚动开始点 t={scroll_start_time}s: y={calc_y(scroll_start_time)}")
-            print(f"滚动中间点 t={scroll_start_time + scroll_duration/2}s: y={calc_y(scroll_start_time + scroll_duration/2)}")
-            print(f"滚动结束点 t={scroll_end_time}s: y={calc_y(scroll_end_time)}")
-            
-            # 打印每秒的前5帧y值示例
-            logger.info("每秒前5帧的y值示例:")
-            print("\n每秒前5帧的y值示例:")
+            # 打印每秒的前5帧y值示例，使用确切的帧号
+            logger.info("每秒前5帧的y值示例 (使用确切的帧号):")
+            print("\n每秒前5帧的y值示例 (使用确切的帧号):")
             for sec in range(int(scroll_start_time), min(int(scroll_end_time), int(scroll_start_time) + 3)):
                 frame_values = []
-                for frame in range(5):
-                    t = sec + frame / self.fps
-                    frame_values.append(calc_y(t))
+                for frame_offset in range(5):
+                    frame_number = sec * self.fps + frame_offset
+                    frame_values.append(calc_y(frame_number / self.fps))
                 logger.info(f"第{sec}秒的前5帧y值: {frame_values}")
                 print(f"第{sec}秒的前5帧y值: {frame_values}")
             
