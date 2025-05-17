@@ -48,7 +48,7 @@ def main():
     service = RollVideoService()
 
     # 定义测试场景参数列表
-    test_cases = [
+    # test_cases = [
         {
             "description": "正常大图(1242x2208) - 无边距遮罩",
             "method": "overlay_cuda", 
@@ -240,6 +240,31 @@ def main():
                 "char_spacing": 10,
                 "fps": 30,
                 "roll_px": 1.6,
+                "top_margin": 120, # 上边距
+                "bottom_margin": 80, # 下边距
+                "left_margin": 0, # 左边距
+                "right_margin": 0, # 右边距
+                "background_url": None, # 无背景图
+            }
+        }
+    ]
+
+    test_cases = [
+        {
+            "description": "无背景图片 - 纯色背景带边距遮罩",
+            "method": "overlay_cuda", 
+            "params": {
+                "text": sample_text,
+                "width": 720,
+                "height": 1280,
+                "font_path": "方正黑体简体.ttf",
+                "font_size": 30,
+                "font_color": [0, 0, 0],
+                "bg_color": [255, 255, 255, 1.0],  # 白色背景
+                "line_spacing": 20,
+                "char_spacing": 10,
+                "fps": 60,
+                "roll_px": 1,
                 "top_margin": 120, # 上边距
                 "bottom_margin": 80, # 下边距
                 "left_margin": 0, # 左边距

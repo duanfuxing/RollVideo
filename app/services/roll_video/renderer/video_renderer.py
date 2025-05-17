@@ -25,7 +25,7 @@ class VideoRenderer:
             width: int,
             height: int,
             fps: int = 60,
-            roll_px: float = 1.6,  # 每帧滚动的像素数（由service层基于行高和每秒滚动行数计算而来）
+            roll_px: int = 1,  # 每帧滚动的像素数（由service层基于行高和每秒滚动行数计算而来）
             top_margin: int = 0,   # 上边距遮罩
             bottom_margin: int = 0,  # 下边距遮罩
     ):
@@ -370,9 +370,25 @@ class VideoRenderer:
             # 滚动距离 = 图像高度 - 视频高度
             scroll_distance = max(0, img_height - self.height)
 
+            # 确保使用整数像素移动
+            # 创建整数型的roll_px_int，向上取整确保至少移动1像素
+            roll_px_int = max(1, int(self.roll_px))
+            
+            # 计算滚动需要的最小步数，每步移动roll_px_int个像素
+            min_scroll_steps = scroll_distance // roll_px_int
+            if scroll_distance % roll_px_int > 0:
+                min_scroll_steps += 1
+                
             # 确保至少有8秒的滚动时间
             min_scroll_duration = 8.0  # 秒
-            scroll_duration = max(min_scroll_duration, scroll_distance / (self.roll_px * self.fps))
+            
+            # 计算滚动持续时间（秒），基于最小步数和设定的帧率
+            # 每一步至少需要一帧，所以最小滚动时间是步数/帧率
+            min_calculated_duration = min_scroll_steps / self.fps
+            scroll_duration = max(min_scroll_duration, min_calculated_duration)
+            
+            # 计算滚动所需的实际帧数（基于帧率和持续时间）
+            scroll_frames = int(scroll_duration * self.fps)
 
             # 前后各添加2秒静止时间
             start_static_time = 2.0  # 秒
@@ -387,8 +403,17 @@ class VideoRenderer:
             scroll_start_time = start_static_time
             scroll_end_time = start_static_time + scroll_duration
 
+            # 计算每帧实际移动的像素数（整数）
+            # 确保总移动距离正好等于scroll_distance
+            px_per_frame = max(1, int(scroll_distance / scroll_frames))
+            
+            # 如果每帧移动px_per_frame像素，总共需要多少帧
+            frames_needed = scroll_distance // px_per_frame
+            if scroll_distance % px_per_frame > 0:
+                frames_needed += 1
+                
             logger.info(f"视频参数: 宽度={self.width}, 高度={self.height}, 帧率={self.fps}")
-            logger.info(f"滚动参数: 距离={scroll_distance}px, 速度={self.roll_px}px/帧, 持续={scroll_duration:.2f}秒")
+            logger.info(f"滚动参数: 距离={scroll_distance}px, 整数速度={px_per_frame}px/帧, 帧数={scroll_frames}, 实际需要帧数={frames_needed}, 持续={scroll_duration:.2f}秒")
             logger.info(
                 f"时间设置: 总时长={total_duration:.2f}秒, 静止开始={start_static_time}秒, 静止结束={end_static_time}秒")
 
@@ -456,8 +481,8 @@ class VideoRenderer:
                 ffmpeg_cmd.extend(["-i", audio_path])
 
             # 根据用户提供的命令修改滚动表达式
-            # overlay_cuda=x=0:y='if(between(t,2.0,458.85), -((t-2.0)/456.85)*27411, if(lt(t,2.0), 0, -27411))'
-            y_expr = f"if(between(t,{scroll_start_time},{scroll_end_time}), {self.top_margin} - ((t-{scroll_start_time})/{scroll_duration})*{img_height - self.height + self.top_margin}, if(lt(t,{scroll_start_time}), {self.top_margin}, -{img_height - self.height + self.top_margin}))"
+            # 使用基于帧数的整数像素计算，确保每帧移动固定的整数像素
+            y_expr = f"if(between(t,{scroll_start_time},{scroll_end_time}), {self.top_margin} - {px_per_frame}*floor((t-{scroll_start_time})*{self.fps}), if(lt(t,{scroll_start_time}), {self.top_margin}, -{img_height - self.height + self.top_margin}))"
 
             # 根据是否有背景图片URL来构建不同的滤镜链
             if local_background_path and os.path.exists(local_background_path):

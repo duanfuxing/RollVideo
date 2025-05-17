@@ -157,7 +157,7 @@ class RollVideoService:
             line_spacing: int = 20,
             char_spacing: int = 5,
             fps: int = 60,
-            roll_px: float = 1.6,  # 每秒滚动的像素px
+            roll_px: int = 1,  # 每秒滚动的像素px
             audio_path: Optional[str] = None,
             top_margin: int = 0,  # 默认上边距0px
             bottom_margin: int = 0,  # 默认下边距0px
