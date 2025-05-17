@@ -370,8 +370,7 @@ class VideoRenderer:
             # 滚动距离 = 图像高度 - 视频高度
             scroll_distance = max(0, img_height - self.height)
 
-            # 确保使用整数像素移动
-            # 创建整数型的roll_px_int，向上取整确保至少移动1像素
+            # 将roll_px转为整数，确保每帧移动整数像素
             roll_px_int = max(1, int(self.roll_px))
             
             # 计算滚动需要的最小步数，每步移动roll_px_int个像素
@@ -481,21 +480,25 @@ class VideoRenderer:
                 ffmpeg_cmd.extend(["-i", audio_path])
 
             # 根据用户提供的命令修改滚动表达式
-            # 使用基于帧数的整数像素计算，确保每帧移动固定的整数像素
-            y_expr = f"if(between(t,{scroll_start_time},{scroll_end_time}), {self.top_margin} - {px_per_frame}*floor((t-{scroll_start_time})*{self.fps}), if(lt(t,{scroll_start_time}), {self.top_margin}, -{img_height - self.height + self.top_margin}))"
+            # 使用ld(N)函数获取帧号，确保每帧位置唯一，乘以roll_px_int控制速度
+            y_expr = f"if(between(t,{scroll_start_time},{scroll_end_time}), {self.top_margin} - {roll_px_int}*ld(N), if(lt(t,{scroll_start_time}), {self.top_margin}, -{img_height - self.height + self.top_margin}))"
             
             # 打印y_expr表达式
             logger.info(f"滚动表达式y_expr: {y_expr}")
             # 同时直接打印到控制台
             print("\n===== 滚动表达式 Y_EXPR 计算值 =====")
             print(f"表达式: {y_expr}")
+            print(f"整数速度参数: roll_px_int = {roll_px_int}")
             
             # 计算并打印几个关键时间点的y值示例
             def calc_y(t):
                 if t < scroll_start_time:
                     return self.top_margin
                 elif t >= scroll_start_time and t <= scroll_end_time:
-                    return self.top_margin - px_per_frame * int((t - scroll_start_time) * self.fps)
+                    # 计算自滚动开始后经过的帧数
+                    frame_index = int((t - scroll_start_time) * self.fps)
+                    # 返回匀速移动的位置，乘以速度因子
+                    return self.top_margin - roll_px_int * frame_index
                 else:
                     return -(img_height - self.height + self.top_margin)
             
