@@ -486,6 +486,9 @@ class VideoRenderer:
             
             # 打印y_expr表达式
             logger.info(f"滚动表达式y_expr: {y_expr}")
+            # 同时直接打印到控制台
+            print("\n===== 滚动表达式 Y_EXPR 计算值 =====")
+            print(f"表达式: {y_expr}")
             
             # 计算并打印几个关键时间点的y值示例
             def calc_y(t):
@@ -501,14 +504,23 @@ class VideoRenderer:
             logger.info(f"滚动中间点 t={scroll_start_time + scroll_duration/2}s: y={calc_y(scroll_start_time + scroll_duration/2)}")
             logger.info(f"滚动结束点 t={scroll_end_time}s: y={calc_y(scroll_end_time)}")
             
+            # 同时直接打印到控制台
+            print(f"滚动开始点 t={scroll_start_time}s: y={calc_y(scroll_start_time)}")
+            print(f"滚动中间点 t={scroll_start_time + scroll_duration/2}s: y={calc_y(scroll_start_time + scroll_duration/2)}")
+            print(f"滚动结束点 t={scroll_end_time}s: y={calc_y(scroll_end_time)}")
+            
             # 打印每秒的前5帧y值示例
             logger.info("每秒前5帧的y值示例:")
+            print("\n每秒前5帧的y值示例:")
             for sec in range(int(scroll_start_time), min(int(scroll_end_time), int(scroll_start_time) + 3)):
                 frame_values = []
                 for frame in range(5):
                     t = sec + frame / self.fps
                     frame_values.append(calc_y(t))
                 logger.info(f"第{sec}秒的前5帧y值: {frame_values}")
+                print(f"第{sec}秒的前5帧y值: {frame_values}")
+            
+            print("===== 滚动表达式计算结束 =====\n")
 
             # 根据是否有背景图片URL来构建不同的滤镜链
             if local_background_path and os.path.exists(local_background_path):
