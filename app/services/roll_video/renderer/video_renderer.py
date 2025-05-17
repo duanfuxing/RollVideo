@@ -479,58 +479,21 @@ class VideoRenderer:
             if audio_path and os.path.exists(audio_path):
                 ffmpeg_cmd.extend(["-i", audio_path])
 
-            # 根据用户提供的命令修改滚动表达式
-            # 使用ld(N)函数获取帧号，确保每帧位置唯一，乘以roll_px_int控制速度
-            y_expr = f"if(between(n,{int(scroll_start_time * self.fps)},{int(scroll_end_time * self.fps)}), {self.top_margin} - {roll_px_int}*(n-{int(scroll_start_time * self.fps)}), if(lt(n,{int(scroll_start_time * self.fps)}), {self.top_margin}, -{img_height - self.height + self.top_margin}))"
+            # 滚动图片的Y轴表达式
+            y_expr = f"if(between(n,{int(scroll_start_time * self.fps)},{int(scroll_end_time * self.fps)}), "\
+                     f"{self.top_margin} - {roll_px_int}*(n-{int(scroll_start_time * self.fps)}), " \
+                     f"if(lt(n,{int(scroll_start_time * self.fps)}), {self.top_margin}, " \
+                     f"-{img_height - self.height + self.top_margin}))"
             
-            # 打印y_expr表达式
-            logger.info(f"滚动表达式y_expr: {y_expr}")
-            # 同时直接打印到控制台
-            print("\n===== 滚动表达式 Y_EXPR 计算值 =====")
-            print(f"表达式: {y_expr}")
-            print(f"整数速度参数: roll_px_int = {roll_px_int}")
-            
-            # 计算并打印几个关键时间点的y值示例
-            def calc_y(t):
-                # 计算当前帧号
-                frame_number = int(t * self.fps)
-                start_frame = int(scroll_start_time * self.fps)
-                end_frame = int(scroll_end_time * self.fps)
-                
-                if frame_number < start_frame:
-                    return self.top_margin
-                elif frame_number >= start_frame and frame_number <= end_frame:
-                    # 直接使用帧号差计算位移
-                    return self.top_margin - roll_px_int * (frame_number - start_frame)
-                else:
-                    return -(img_height - self.height + self.top_margin)
-            
-            # 打印不同时间点的y值
-            logger.info(f"滚动开始点 t={scroll_start_time}s: y={calc_y(scroll_start_time)}")
-            logger.info(f"滚动中间点 t={scroll_start_time + scroll_duration/2}s: y={calc_y(scroll_start_time + scroll_duration/2)}")
-            logger.info(f"滚动结束点 t={scroll_end_time}s: y={calc_y(scroll_end_time)}")
-            
-            # 打印每秒的前5帧y值示例，使用确切的帧号
-            logger.info("每秒前5帧的y值示例 (使用确切的帧号):")
-            print("\n每秒前5帧的y值示例 (使用确切的帧号):")
-            for sec in range(int(scroll_start_time), min(int(scroll_end_time), int(scroll_start_time) + 3)):
-                frame_values = []
-                for frame_offset in range(5):
-                    frame_number = sec * self.fps + frame_offset
-                    frame_values.append(calc_y(frame_number / self.fps))
-                logger.info(f"第{sec}秒的前5帧y值: {frame_values}")
-                print(f"第{sec}秒的前5帧y值: {frame_values}")
-            
-            print("===== 滚动表达式计算结束 =====\n")
-
-            # 根据是否有背景图片URL来构建不同的滤镜链
+            # 根据是否有背景图片URL来构建不同的滤镜链-使用背景图片的滤镜链
             if local_background_path and os.path.exists(local_background_path):
-                # 使用背景图片的滤镜链
                 # 基础部分：背景和滚动内容
                 filter_parts = [
                     f"[0:v]fps={self.fps},format=yuv420p,hwupload_cuda[bg_cuda]",
-                    f"[1:v]fps={self.fps},format=rgba,hwupload_cuda[scroll_cuda]",
-                    f"[bg_cuda][scroll_cuda]overlay_cuda=x=0:y='{y_expr}'[overlayed_cuda]"
+                    # 添加锐化处理以保持文字边缘的清晰度
+                    f"[1:v]fps={self.fps},format=rgba,unsharp=5:5:1.2:5:5:0.0,hwupload_cuda[scroll_cuda]",
+                    # 使用精确的坐标计算
+                    f"[bg_cuda][scroll_cuda]overlay_cuda=x=0:y='{y_expr}':eval=frame[overlayed_cuda]"
                 ]
                 
                 # 处理顶部遮罩
@@ -558,8 +521,10 @@ class VideoRenderer:
                 # 使用纯色背景的滤镜链
                 # 基础部分：背景和滚动内容
                 filter_parts = [
-                    f"[1:v]fps={self.fps},format=yuv420p,hwupload_cuda[img_cuda]",
-                    f"[0:v][img_cuda]overlay_cuda=x=0:y='{y_expr}'[bg_with_scroll]"
+                    # 文本图像处理：保持RGBA，应用unsharp，然后硬件上传
+                    f"[1:v]fps={self.fps},format=rgba,unsharp=5:5:1.2:5:5:0.0,hwupload_cuda[img_cuda]",
+                    # 背景(0:v) 与 处理后的文本图像(img_cuda) 叠加
+                    f"[0:v][img_cuda]overlay_cuda=x=0:y='{y_expr}':eval=frame[bg_with_scroll]"
                 ]
                 
                 current_output = "[bg_with_scroll]"
