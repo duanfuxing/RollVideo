@@ -483,6 +483,32 @@ class VideoRenderer:
             # 根据用户提供的命令修改滚动表达式
             # 使用基于帧数的整数像素计算，确保每帧移动固定的整数像素
             y_expr = f"if(between(t,{scroll_start_time},{scroll_end_time}), {self.top_margin} - {px_per_frame}*floor((t-{scroll_start_time})*{self.fps}), if(lt(t,{scroll_start_time}), {self.top_margin}, -{img_height - self.height + self.top_margin}))"
+            
+            # 打印y_expr表达式
+            logger.info(f"滚动表达式y_expr: {y_expr}")
+            
+            # 计算并打印几个关键时间点的y值示例
+            def calc_y(t):
+                if t < scroll_start_time:
+                    return self.top_margin
+                elif t >= scroll_start_time and t <= scroll_end_time:
+                    return self.top_margin - px_per_frame * int((t - scroll_start_time) * self.fps)
+                else:
+                    return -(img_height - self.height + self.top_margin)
+            
+            # 打印不同时间点的y值
+            logger.info(f"滚动开始点 t={scroll_start_time}s: y={calc_y(scroll_start_time)}")
+            logger.info(f"滚动中间点 t={scroll_start_time + scroll_duration/2}s: y={calc_y(scroll_start_time + scroll_duration/2)}")
+            logger.info(f"滚动结束点 t={scroll_end_time}s: y={calc_y(scroll_end_time)}")
+            
+            # 打印每秒的前5帧y值示例
+            logger.info("每秒前5帧的y值示例:")
+            for sec in range(int(scroll_start_time), min(int(scroll_end_time), int(scroll_start_time) + 3)):
+                frame_values = []
+                for frame in range(5):
+                    t = sec + frame / self.fps
+                    frame_values.append(calc_y(t))
+                logger.info(f"第{sec}秒的前5帧y值: {frame_values}")
 
             # 根据是否有背景图片URL来构建不同的滤镜链
             if local_background_path and os.path.exists(local_background_path):
